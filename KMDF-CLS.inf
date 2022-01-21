@@ -1,0 +1,77 @@
+;
+; KMDF-CLS.inf
+;
+
+[Version]
+Signature="$WINDOWS NT$"
+Class=System ; TODO: specify appropriate Class
+ClassGuid={4d36e97d-e325-11ce-bfc1-08002be10318} ; TODO: specify appropriate ClassGuid
+Provider=%ManufacturerName%
+CatalogFile=KMDF-CLS.cat
+DriverVer= ; TODO: set DriverVer in stampinf property pages
+PnpLockdown=1
+
+[DestinationDirs]
+DefaultDestDir = 12
+KMDF-CLS_Device_CoInstaller_CopyFiles = 11
+
+[SourceDisksNames]
+1 = %DiskName%,,,""
+
+[SourceDisksFiles]
+KMDF-CLS.sys  = 1,,
+WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll=1 ; make sure the number matches with SourceDisksNames
+
+;*****************************************
+; Install Section
+;*****************************************
+
+[Manufacturer]
+%ManufacturerName%=Standard,NT$ARCH$
+
+[Standard.NT$ARCH$]
+%KMDF-CLS.DeviceDesc%=KMDF-CLS_Device, Root\KMDF-CLS ; TODO: edit hw-id
+
+[KMDF-CLS_Device.NT]
+CopyFiles=Drivers_Dir
+
+[Drivers_Dir]
+KMDF-CLS.sys
+
+;-------------- Service installation
+[KMDF-CLS_Device.NT.Services]
+AddService = KMDF-CLS,%SPSVCINST_ASSOCSERVICE%, KMDF-CLS_Service_Inst
+
+; -------------- KMDF-CLS driver install sections
+[KMDF-CLS_Service_Inst]
+DisplayName    = %KMDF-CLS.SVCDESC%
+ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
+StartType      = 3               ; SERVICE_DEMAND_START
+ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %12%\KMDF-CLS.sys
+
+;
+;--- KMDF-CLS_Device Coinstaller installation ------
+;
+
+[KMDF-CLS_Device.NT.CoInstallers]
+AddReg=KMDF-CLS_Device_CoInstaller_AddReg
+CopyFiles=KMDF-CLS_Device_CoInstaller_CopyFiles
+
+[KMDF-CLS_Device_CoInstaller_AddReg]
+HKR,,CoInstallers32,0x00010000, "WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll,WdfCoInstaller"
+
+[KMDF-CLS_Device_CoInstaller_CopyFiles]
+WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll
+
+[KMDF-CLS_Device.NT.Wdf]
+KmdfService =  KMDF-CLS, KMDF-CLS_wdfsect
+[KMDF-CLS_wdfsect]
+KmdfLibraryVersion = $KMDFVERSION$
+
+[Strings]
+SPSVCINST_ASSOCSERVICE= 0x00000002
+ManufacturerName="<Your manufacturer name>" ;TODO: Replace with your manufacturer name
+DiskName = "KMDF-CLS Installation Disk"
+KMDF-CLS.DeviceDesc = "KMDF-CLS Device"
+KMDF-CLS.SVCDESC = "KMDF-CLS Service"
