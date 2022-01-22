@@ -4,10 +4,12 @@
 #define IOCTL(Function) CTL_CODE(FILE_DEVICE_UNKNOWN, Function, METHOD_NEITHER, FILE_ANY_ACCESS)
 #define IOCTL2(Function) CTL_CODE(FILE_DEVICE_UNKNOWN, Function,  METHOD_BUFFERED , FILE_ANY_ACCESS)
 #define IOCTL3(Function) CTL_CODE(FILE_DEVICE_UNKNOWN, Function,  METHOD_IN_DIRECT , FILE_ANY_ACCESS)
+#define IOCTL4(Function) CTL_CODE(FILE_DEVICE_UNKNOWN, Function,  METHOD_OUT_DIRECT , FILE_ANY_ACCESS)
 
 #define KMDF_NEITHER        IOCTL(0x900)
 #define KMFD_BUFFERED       IOCTL2(0x901)
 #define KMFD_IN_DIRECT      IOCTL3(0x902)
+#define KMFD_OUT_DIRECT     IOCTL4(0x903)
 
 DRIVER_INITIALIZE DriverEntry;
 
@@ -25,8 +27,7 @@ IrpDeviceIoCtlHandler(
     PVOID UserInputBuffer = NULL;
     PVOID UserOutputBuffer = NULL;
     PVOID SystemBuffer = NULL;
-    PVOID SystemInputBuffer = NULL;
-    PVOID SystemOutputBuffer = NULL;
+
 
     UCHAR KernelBuffer[512] = { 0 };
 
@@ -44,7 +45,7 @@ IrpDeviceIoCtlHandler(
         case KMDF_NEITHER:
             __try
             {
-                DbgPrint("****** KMDF_METHOD_NEITHER ******\n");
+                DbgPrint("\n****** KMDF_METHOD_NEITHER ******\n");
                 PAGED_CODE();
 
                 UserInputBuffer = IrpSp->Parameters.DeviceIoControl.Type3InputBuffer;
@@ -72,7 +73,7 @@ IrpDeviceIoCtlHandler(
             break;
 
         case KMFD_BUFFERED:
-            DbgPrint("****** KMFD_METHOD_BUFFERED ******\n");
+            DbgPrint("\n****** KMFD_METHOD_BUFFERED ******\n");
 
             SystemBuffer = Irp->AssociatedIrp.SystemBuffer;
             PVOID PSystemBuffer = &SystemBuffer;
@@ -92,35 +93,59 @@ IrpDeviceIoCtlHandler(
 
             break;
         case KMFD_IN_DIRECT:
-            DbgPrint("****** KMFD_METHOD_IN_DIRECT ******\n");
+            DbgPrint("\n****** KMFD_METHOD_IN_DIRECT ******\n");
 
-            //INPUT similar al BUFFERED
-            SystemInputBuffer = Irp->AssociatedIrp.SystemBuffer;
-            //PVOID PSystemInputBuffer = &SystemInputBuffer;
-            DbgPrint("[-] SystemInputBuffer = %p\n", SystemInputBuffer);
-            SizeIn = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+            //Segundo INPUT similar al BUFFERED
+            SystemBuffer = Irp->AssociatedIrp.SystemBuffer;
+            DbgPrint("[-] SystemBuffer = %p\n", SystemBuffer);
+            //SizeIn = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
             
-            //OUTPUT
-            SizeOut = IrpSp->Parameters.DeviceIoControl.OutputBufferLength;
-            PVOID PSystemOutputBuffer = &SystemOutputBuffer;
-            SystemOutputBuffer = NULL;
+            //Primer INPUT
+            //SizeOut = IrpSp->Parameters.DeviceIoControl.OutputBufferLength;
+            PVOID pReadDataBuffer = NULL;
             if (Irp->MdlAddress)
             {
-                SystemOutputBuffer = MmGetSystemAddressForMdlSafe(Irp->MdlAddress, NormalPagePriority);
-                DbgPrint("[-] SystemOutputBuffer = %p\n", SystemOutputBuffer);
+                pReadDataBuffer = MmGetSystemAddressForMdlSafe(Irp->MdlAddress, NormalPagePriority);
+                DbgPrint("[-] MDLInputBuffer = %p\n", pReadDataBuffer);
             }
             else
             {
-                DbgPrint("[-] Error Initializing SystemOutputBuffer\n");
+                DbgPrint("[-] Error Initializing MDLInputBuffer\n");
                 break;
             }
 
             //SEND & RECEIVE
-            RtlCopyMemory((PVOID)KernelBuffer, SystemInputBuffer, SizeIn);
+            //RtlCopyMemory((PVOID)KernelBuffer, SystemBuffer, SizeIn);
 
-            DbgPrint("[-] Enviado %s\n", KernelBuffer);
+            DbgPrint("[-] EnviadoSystemBuffer %s\n", SystemBuffer);
+            DbgPrint("[-] EnviadoIOBuffer %s\n", pReadDataBuffer);
 
-            RtlCopyMemory((PVOID)SystemOutputBuffer, PSystemOutputBuffer, 16);
+            //RtlCopyMemory((PVOID)SystemOutputBuffer, pSystemOutputBuffer, 16);
+
+            break;
+        case KMFD_OUT_DIRECT:
+            DbgPrint("\n****** KMFD_METHOD_OUT_DIRECT ******\n");
+
+            //INPUT similar al BUFFERED
+            SystemBuffer = Irp->AssociatedIrp.SystemBuffer;
+            DbgPrint("[-] SystemBuffer = %p\n", SystemBuffer);
+
+            //OUTPUT por el MDL
+            PVOID pWriteDataBuffer = NULL;
+            if (Irp->MdlAddress)
+            {
+                pWriteDataBuffer = MmGetSystemAddressForMdlSafe(Irp->MdlAddress, NormalPagePriority);
+                DbgPrint("[-] MDLInputBuffer = %p\n", pWriteDataBuffer);
+            }
+            else
+            {
+                DbgPrint("[-] Error Initializing MDLOutputBuffer\n");
+                break;
+            }
+
+            DbgPrint("[-] EnviadoSystemBuffer %s\n", SystemBuffer);
+
+            RtlCopyMemory((PVOID)pWriteDataBuffer, "SALIDA OUTPUT BUFFER", 21);
 
             break;
         }
@@ -161,7 +186,7 @@ IrpCreateCloseHandler(
     PAGED_CODE();
 
     if (pCurrentSL->MajorFunction == 0) {
-        DbgPrint("[-] Pepito Driver CreateFile\n\n");
+        DbgPrint("[-] Pepito Driver CreateFile\n");
     }
     if (pCurrentSL->MajorFunction == 2) {
         DbgPrint("[-] Pepito Driver CloseFile\n\n");
